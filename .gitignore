@@ -2,5 +2,8 @@
 COMP90086_2023_TLLdataset/
 COMP90086_2023_TLLdataset.zip
 dataset/
+archive/
+trained_models
 # ignore models
 *.h5
+*.pkl

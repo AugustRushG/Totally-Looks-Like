@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import pandas as pd
 import random
+import math
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 
 def show_img(path):
@@ -42,8 +43,7 @@ def load_and_preprocess_image(image_path, target_size=(245, 200), random_transfo
     
     return img
 
-
-def create_train_valid_dataset(random_transform, num_dissimilar_pairs = train_pairing_df.size):
+def create_train_valid_dataset(random_transform,  train_pairing_df, num_dissimilar_pairs = 2000):
     # Create lists to store paired left and right images
     image_pairs_with_label = []
 
@@ -74,8 +74,6 @@ def create_train_valid_dataset(random_transform, num_dissimilar_pairs = train_pa
 
     return image_pairs_with_label
 
-
-
 def display_image_pairs(image_pairs, num_pairs_to_display=5):
     plt.figure(figsize=(12, 6))
 
@@ -105,4 +103,60 @@ def display_image_pairs(image_pairs, num_pairs_to_display=5):
     plt.tight_layout()
     plt.show()
 
-    
+def show_test_case(model, test_candidates_df, row_number=10):
+    for index, row in test_candidates_df.iterrows():
+        if index >= row_number:
+            break
+
+        print(f"Row {index}")
+
+        left_image = None
+        right_images = []
+
+        for column, value in row.items():
+            print(f"  Column {column}: {value}")
+            if column == 'left':
+                left_image = load_and_preprocess_image(f"dataset/test/left/{value}.jpg")
+            else:
+                test_img_right = load_and_preprocess_image(f"dataset/test/right/{value}.jpg")
+                right_images.append(test_img_right)
+
+        # Convert to NumPy arrays
+        left_image = np.array([left_image])
+        right_images = np.array([right_images])
+
+        # Run prediction
+        try:
+            similarity_scores = model.predict([left_image, right_images], verbose=0)[0]
+            print("Similarity Scores:", similarity_scores)
+        except Exception as e:
+            print("An error occurred during prediction:", e)
+
+        # Plot images
+        num_rows = math.ceil((len(right_images[0]) + 1) / 10)
+        fig, axes = plt.subplots(num_rows, 10, figsize=(20, 5 * num_rows))
+
+        # Show left image
+        if num_rows > 1:
+            axes[0, 0].imshow(left_image[0])
+            axes[0, 0].set_title("Left Image")
+            axes[0, 0].axis('off')
+        else:
+            axes[0].imshow(left_image[0])
+            axes[0].set_title("Left Image")
+            axes[0].axis('off')
+
+        # Show right images
+        for i in range(len(right_images[0])):
+            row_idx = (i + 1) // 10
+            col_idx = (i + 1) % 10
+            if num_rows > 1:
+                axes[row_idx, col_idx].imshow(right_images[0][i])
+                axes[row_idx, col_idx].set_title(f"Right {i+1}\nScore: {similarity_scores[i]:.2f}")
+                axes[row_idx, col_idx].axis('off')
+            else:
+                axes[col_idx].imshow(right_images[0][i])
+                axes[col_idx].set_title(f"Right {i+1}\nScore: {similarity_scores[i]:.2f}")
+                axes[col_idx].axis('off')
+
+        plt.show()
