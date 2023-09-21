@@ -2,3 +2,4 @@ matplotlib
 pandas
 tensorflow==2.10
 sklearn
+opencv-python

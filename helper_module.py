@@ -1,9 +1,13 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import pandas as pd
+import numpy as np
 import random
 import math
+import cv2
+from sklearn.metrics.pairwise import cosine_similarity
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
+from tensorflow.keras.applications.resnet50 import preprocess_input
 
 def show_img(path):
     image_path = path
@@ -21,7 +25,7 @@ def read_csv_to_df(path):
     df = pd.read_csv(file_path)
     return df
 
-def load_and_preprocess_image(image_path, target_size=(245, 200), random_transform=False):
+def load_and_preprocess_image(image_path, target_size=(224, 224), random_transform=False):
     # Open the image using Pillow (PIL)
     train_datagen = ImageDataGenerator(
         rescale=1./255,         # Rescale pixel values to [0, 1]
@@ -74,31 +78,32 @@ def create_train_valid_dataset(random_transform,  train_pairing_df, num_dissimil
 
     return image_pairs_with_label
 
-def display_image_pairs(image_pairs, num_pairs_to_display=5):
-    plt.figure(figsize=(12, 6))
+def display_image_pair(image_pair):
+    left_image, right_images = image_pair
+    num_right_images = len(right_images)
+    
+    max_images_per_row = 10  # Maximum number of images to display in a single row
 
-    for i in range(num_pairs_to_display):
-        left_image = image_pairs[i][0][0]
-        right_image = image_pairs[i][0][1]
-        label = image_pairs[i][1]
+    num_rows = (num_right_images - 1) // max_images_per_row + 1  # Calculate the number of rows
 
-        # Choose a title based on similarity label
-        if label == 1:
-            title = "Similar Pair"
-        else:
-            title = "Dissimilar Pair"
+    plt.figure(figsize=(15, 5 * num_rows))
 
-        # Display the left image
-        plt.subplot(2, num_pairs_to_display, i + 1)
+    for i in range(num_rows):
+        start_idx = i * max_images_per_row
+        end_idx = min((i + 1) * max_images_per_row, num_right_images)
+        
+        row_right_images = right_images[start_idx:end_idx]
+
+        plt.subplot(num_rows, max_images_per_row + 1, i * (max_images_per_row + 1) + 1)
         plt.imshow(left_image)
-        plt.title(title)
+        plt.title("Left Image")
         plt.axis("off")
 
-        # Display the right image
-        plt.subplot(2, num_pairs_to_display, num_pairs_to_display + i + 1)
-        plt.imshow(right_image)
-        plt.title(f"Label: {label}")
-        plt.axis("off")
+        for j, right_image in enumerate(row_right_images):
+            plt.subplot(num_rows, max_images_per_row + 1, i * (max_images_per_row + 1) + j + 2)
+            plt.imshow(right_image)
+            plt.title(f"Right Image {start_idx + j + 1}")
+            plt.axis("off")
 
     plt.tight_layout()
     plt.show()
@@ -160,3 +165,105 @@ def show_test_case(model, test_candidates_df, row_number=10):
                 axes[col_idx].axis('off')
 
         plt.show()
+
+def extract_features(x,model):
+    
+    x = np.expand_dims(x, axis=0)
+    x = preprocess_input(x)
+
+    # Extract features from the image
+    features = model.predict(x,verbose = 0)
+
+    return features
+
+def visualize_feature_maps(features, number_of_feature_to_show=10, figsize=(10, 10), cmap='viridis'):
+    num_features = features.shape[-1]
+    num_rows = (num_features + 4) // 5  # Calculate the number of rows needed
+
+    plt.figure(figsize=figsize)
+    for i in range(number_of_feature_to_show):
+        if i < num_features:
+            plt.subplot(num_rows, 5, i + 1)
+            feature_map = features[0, :, :, i]
+
+            # Resize the feature map for better visualization
+            resized_feature_map = cv2.resize(feature_map, (200, 200))
+            plt.imshow(resized_feature_map, cmap=cmap, interpolation='nearest')
+            plt.axis('off')
+            plt.title(f'Feature {i + 1}')
+
+    plt.suptitle(f'Feature Maps Visualization', fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
+def calculate_cosine_distance(left_image, right_image,model):
+    left_image = extract_features(left_image,model)
+    right_image = extract_features(right_image,model)
+    return cosine_similarity([left_image.flatten()], [right_image.flatten()])[0][0]
+
+def show_local_features(detector, image):
+    img = cv2.cvtColor(image.astype(np.uint8), cv2.COLOR_RGB2BGR)
+
+    key_points, description = detector.detectAndCompute(img, None)
+    img_keypoints = cv2.drawKeypoints(img, 
+                                            key_points, 
+                                            img, 
+                                            flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS) # Draw circles.
+    rgb = cv2.cvtColor(img_keypoints, cv2.COLOR_BGR2RGB)
+    plt.figure(figsize=(10, 10))
+    plt.title('detector Interest Points')
+    plt.imshow(rgb); plt.show()
+
+def image_detect_and_compute(detector, img_name):
+    """Detect and compute interest points and their descriptors."""
+    img = cv2.cvtColor(img_name.astype(np.uint8), cv2.COLOR_RGB2BGR)
+    kp, des = detector.detectAndCompute(img, None)
+    return img, kp, des
+    
+def draw_image_matches(detector, image_pair, distance_threshold = 0.75):
+    """Draw ORB feature matches of the given two images."""
+
+    img1, kp1, des1 = image_detect_and_compute(detector, image_pair[0])
+    img2, kp2, des2 = image_detect_and_compute(detector, image_pair[1])
+    
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des1,des2,k=2)
+    # Apply ratio test
+    good = []
+    for m,n in matches:
+        if m.distance < distance_threshold*n.distance:
+            good.append([m])
+    # cv.drawMatchesKnn expects list of lists as matches.
+    img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    rgb = cv2.cvtColor(img3, cv2.COLOR_BGR2RGB)
+    plt.imshow(rgb),plt.show()
+
+
+def data_generator(pair_list, batch_size=32, num_right_images=20):
+    while True:
+        left_images = []
+        right_images = []
+        labels = []
+
+        # Shuffle the pairs for each epoch
+        random.shuffle(pair_list)
+
+        for pair in pair_list:
+            left_image, right_images_list = pair[0], pair[1]
+
+            # Create labels as a list of similarity scores (1.0 for the similar image, 0.0 for dissimilar images)
+            label = [1] + [0] * (num_right_images - 1)
+
+            left_images.append(left_image)  # Add the left image to the left_images list
+            right_images.append(right_images_list[:num_right_images])
+            labels.append(label)
+
+            if len(left_images) >= batch_size:
+                yield [np.array(left_images), np.array(right_images)], np.array(labels)
+                left_images = []
+                right_images = []
+                labels = []
+
+        # Yield the remaining data in the last batch
+        if len(left_images) > 0:
+            yield [np.array(left_images), np.array(right_images)], np.array(labels)
