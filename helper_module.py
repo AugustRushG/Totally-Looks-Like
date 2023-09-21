@@ -25,7 +25,7 @@ def read_csv_to_df(path):
     df = pd.read_csv(file_path)
     return df
 
-def load_and_preprocess_image(image_path, target_size=(245, 200), random_transform=False):
+def load_and_preprocess_image(image_path, target_size=(224, 224), random_transform=False):
     # Open the image using Pillow (PIL)
     train_datagen = ImageDataGenerator(
         rescale=1./255,         # Rescale pixel values to [0, 1]
@@ -237,3 +237,33 @@ def draw_image_matches(detector, image_pair, distance_threshold = 0.75):
     img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     rgb = cv2.cvtColor(img3, cv2.COLOR_BGR2RGB)
     plt.imshow(rgb),plt.show()
+
+
+def data_generator(pair_list, batch_size=32, num_right_images=20):
+    while True:
+        left_images = []
+        right_images = []
+        labels = []
+
+        # Shuffle the pairs for each epoch
+        random.shuffle(pair_list)
+
+        for pair in pair_list:
+            left_image, right_images_list = pair[0], pair[1]
+
+            # Create labels as a list of similarity scores (1.0 for the similar image, 0.0 for dissimilar images)
+            label = [1] + [0] * (num_right_images - 1)
+
+            left_images.append(left_image)  # Add the left image to the left_images list
+            right_images.append(right_images_list[:num_right_images])
+            labels.append(label)
+
+            if len(left_images) >= batch_size:
+                yield [np.array(left_images), np.array(right_images)], np.array(labels)
+                left_images = []
+                right_images = []
+                labels = []
+
+        # Yield the remaining data in the last batch
+        if len(left_images) > 0:
+            yield [np.array(left_images), np.array(right_images)], np.array(labels)
