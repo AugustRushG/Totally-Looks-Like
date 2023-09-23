@@ -238,7 +238,6 @@ def draw_image_matches(detector, image_pair, distance_threshold = 0.75):
     rgb = cv2.cvtColor(img3, cv2.COLOR_BGR2RGB)
     plt.imshow(rgb),plt.show()
 
-
 def data_generator(pair_list, batch_size=32, num_right_images=20):
     while True:
         left_images = []
