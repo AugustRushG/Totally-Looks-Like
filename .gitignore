@@ -8,3 +8,6 @@ trained_models
 # ignore models
 *.h5
 *.pkl
+*.joblib
+*.csv
+*.keras
