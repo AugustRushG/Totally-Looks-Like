@@ -25,7 +25,7 @@ def read_csv_to_df(path):
     df = pd.read_csv(file_path)
     return df
 
-def load_and_preprocess_image(image_path, target_size=(245, 200), random_transform=False):
+def load_and_preprocess_image(image_path, target_size=(224, 224), random_transform=False):
     # Open the image using Pillow (PIL)
     train_datagen = ImageDataGenerator(
         rescale=1./255,         # Rescale pixel values to [0, 1]
@@ -108,64 +108,6 @@ def display_image_pair(image_pair):
     plt.tight_layout()
     plt.show()
 
-def show_test_case(model, test_candidates_df, row_number=10):
-    for index, row in test_candidates_df.iterrows():
-        if index >= row_number:
-            break
-
-        print(f"Row {index}")
-
-        left_image = None
-        right_images = []
-
-        for column, value in row.items():
-            print(f"  Column {column}: {value}")
-            if column == 'left':
-                left_image = load_and_preprocess_image(f"dataset/test/left/{value}.jpg")
-            else:
-                test_img_right = load_and_preprocess_image(f"dataset/test/right/{value}.jpg")
-                right_images.append(test_img_right)
-
-        # Convert to NumPy arrays
-        left_image = np.array([left_image])
-        right_images = np.array([right_images])
-
-        # Run prediction
-        try:
-            similarity_scores = model.predict([left_image, right_images], verbose=0)[0]
-            print("Similarity Scores:", similarity_scores)
-        except Exception as e:
-            print("An error occurred during prediction:", e)
-
-        # Plot images
-        num_rows = math.ceil((len(right_images[0]) + 1) / 10)
-        fig, axes = plt.subplots(num_rows, 10, figsize=(20, 5 * num_rows))
-
-        # Show left image
-        if num_rows > 1:
-            axes[0, 0].imshow(left_image[0])
-            axes[0, 0].set_title("Left Image")
-            axes[0, 0].axis('off')
-        else:
-            axes[0].imshow(left_image[0])
-            axes[0].set_title("Left Image")
-            axes[0].axis('off')
-
-        # Show right images
-        for i in range(len(right_images[0])):
-            row_idx = (i + 1) // 10
-            col_idx = (i + 1) % 10
-            if num_rows > 1:
-                axes[row_idx, col_idx].imshow(right_images[0][i])
-                axes[row_idx, col_idx].set_title(f"Right {i+1}\nScore: {similarity_scores[i]:.2f}")
-                axes[row_idx, col_idx].axis('off')
-            else:
-                axes[col_idx].imshow(right_images[0][i])
-                axes[col_idx].set_title(f"Right {i+1}\nScore: {similarity_scores[i]:.2f}")
-                axes[col_idx].axis('off')
-
-        plt.show()
-
 def extract_features(x,model):
     
     x = np.expand_dims(x, axis=0)
@@ -237,3 +179,150 @@ def draw_image_matches(detector, image_pair, distance_threshold = 0.75):
     img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     rgb = cv2.cvtColor(img3, cv2.COLOR_BGR2RGB)
     plt.imshow(rgb),plt.show()
+
+def show_test_case(model, test_candidates_df, row_number=10):
+    """
+    Displays a specified number of test cases and their similarity scores obtained
+    from a given siamese neural network model.
+    
+    Parameters:
+        model (tensorflow.keras.Model): The siamese model used for obtaining similarity scores.
+        test_candidates_df (pandas.DataFrame): The DataFrame containing test cases.
+            It should have a 'left' column representing the left image and other columns for the right images.
+        row_number (int, optional): The number of rows from the DataFrame to display.
+            Default is 10.
+    
+    Output:
+        The function will print the row number, column names, and their corresponding values.
+        It will also print the similarity scores and display the images using matplotlib's pyplot.
+        
+    Notes:
+        - This function depends on external functions like `load_and_preprocess_image` 
+          for loading and preprocessing the images.
+        - The function uses matplotlib for plotting, ensure it is installed and imported.
+        - The function also assumes that images can be loaded from "dataset/test/left/" and "dataset/test/right/"
+          for the left and right images, respectively.
+          
+    Raises:
+        Exception: If an error occurs during the prediction of similarity scores.
+        
+    Example:
+        >>> show_test_case(model=my_siamese_model, test_candidates_df=test_df, row_number=5)
+    """
+    for index, row in test_candidates_df.iterrows():
+        if index >= row_number:
+            break
+
+        print(f"Row {index}")
+
+        left_image = None
+        right_images = []
+
+        for column, value in row.items():
+            print(f"  Column {column}: {value}")
+            if column == 'left':
+                left_image = load_and_preprocess_image(f"dataset/test/left/{value}.jpg")
+            else:
+                test_img_right = load_and_preprocess_image(f"dataset/test/right/{value}.jpg")
+                right_images.append(test_img_right)
+
+        # Convert to NumPy arrays
+        left_image = np.array([left_image])
+        right_images = np.array([right_images])
+
+        # Run prediction
+        try:
+            similarity_scores = model.predict([left_image, right_images], verbose=0)[0]
+            print("Similarity Scores:", similarity_scores)
+        except Exception as e:
+            print("An error occurred during prediction:", e)
+
+        # Plot images
+        num_rows = math.ceil((len(right_images[0]) + 1) / 10)
+        fig, axes = plt.subplots(num_rows, 10, figsize=(20, 5 * num_rows))
+
+        # Show left image
+        if num_rows > 1:
+            axes[0, 0].imshow(left_image[0])
+            axes[0, 0].set_title("Left Image")
+            axes[0, 0].axis('off')
+        else:
+            axes[0].imshow(left_image[0])
+            axes[0].set_title("Left Image")
+            axes[0].axis('off')
+
+        # Show right images
+        for i in range(len(right_images[0])):
+            row_idx = (i + 1) // 10
+            col_idx = (i + 1) % 10
+            if num_rows > 1:
+                axes[row_idx, col_idx].imshow(right_images[0][i])
+                axes[row_idx, col_idx].set_title(f"Right {i+1}\nScore: {similarity_scores[i]:.2f}")
+                axes[row_idx, col_idx].axis('off')
+            else:
+                axes[col_idx].imshow(right_images[0][i])
+                axes[col_idx].set_title(f"Right {i+1}\nScore: {similarity_scores[i]:.2f}")
+                axes[col_idx].axis('off')
+
+        plt.show()
+    
+def get_test_result(model, test_candidates_df, output_df, file_name):
+    """
+    Computes similarity scores for test image pairs and saves the results to a DataFrame and CSV file.
+    
+    Parameters:
+        model (tensorflow.keras.Model): The model used for computing similarity scores.
+        test_candidates_df (pandas.DataFrame): The DataFrame containing the test image pairs.
+            The DataFrame should contain a 'left' column representing the left image and other columns for the right images.
+        output_df (pandas.DataFrame): The DataFrame where the results will be stored.
+            Should have columns matching the test_candidates_df including a 'left' column and additional columns for scores.
+        file_name (str): The name of the CSV file where the DataFrame will be saved.
+    
+    Output:
+        This function modifies output_df in place, adding similarity scores for each image pair.
+        It also saves the updated DataFrame to a CSV file with the given file_name.
+    
+    Notes:
+        - This function depends on external functions like `load_and_preprocess_image`
+          for loading and preprocessing images.
+        - Assumes that images are stored in "dataset/test/left/" for left images and "dataset/test/right/" for right images.
+          
+    Raises:
+        None
+    
+    Example:
+        >>> get_test_result(model=my_siamese_model, test_candidates_df=test_df, output_df=result_df, file_name="results.csv")
+    """
+    for index, row in test_candidates_df.iterrows():
+        print(f"Row {index}")
+
+        left_image = None
+        right_images = []
+
+        row_name = None  # Placeholder for the value in the 'left' column
+
+        for column, value in row.items():
+            if column == 'left':
+                row_name = value
+                left_image = load_and_preprocess_image(f"dataset/test/left/{value}.jpg")
+            else:
+                test_img_right = load_and_preprocess_image(f"dataset/test/right/{value}.jpg")
+                right_images.append(test_img_right)
+
+        # Convert to NumPy arrays
+        left_image = np.array([left_image])
+        right_images = np.array([right_images])
+
+        # Run prediction
+        
+        similarity_scores = model.predict([left_image, right_images], verbose=0)[0]
+
+        # Add to DataFrame
+        new_row = {'left': row_name}
+        for i, score in enumerate(similarity_scores):
+            new_row[f"c{i}"] = score
+
+        output_df.loc[len(output_df)] = new_row
+
+    # Save the DataFrame to a CSV file
+    output_df.to_csv(file_name, index=False)
