@@ -118,6 +118,48 @@ def extract_features(x,model):
 
     return features
 
+def get_image_feature_vector(img):
+        """Get the feature vector for an image."""
+        img = np.expand_dims(img, axis=0).copy()
+        img = preprocess_input(img)
+        features = extract_model.predict(img,verbose = 0)
+        return features.flatten()
+
+def get_batch_image_feature_vectors(imgs):
+    imgs = np.array(imgs)
+    imgs = preprocess_input(imgs)
+    features = extract_model.predict(imgs, verbose=0)
+    return features.reshape(features.shape[0], -1)
+
+def batch_cosine_similarity(left_features, right_features_batch):
+    similarities = sk_cosine_similarity(left_features.reshape(1, -1), right_features_batch)
+    return (similarities + 1) / 2.0
+
+def pick_20_images(left_image, image_pool_number=100):
+    # start_time = time.time()  # Start the timer
+    left_features = get_image_feature_vector(left_image)
+
+    # Pick random images from the pool
+    right_images = pick_random_images(image_pool_non_aug, image_pool_number)
+
+    # Get feature vectors for the batch of right images
+    right_features_batch = get_batch_image_feature_vectors(right_images)
+
+    # Calculate the cosine similarities
+    similarities = batch_cosine_similarity(left_features, right_features_batch)[0]
+
+    # Sort the indices based on similarity score
+    top_indices = np.argsort(similarities)[::-1][:19]
+
+    # Select the top 19 images
+    top_images = right_images[top_indices]
+
+    # end_time = time.time()  # Stop the timer
+
+    # print(f"Time taken: {end_time - start_time} seconds")
+    
+    return top_images
+
 def visualize_feature_maps(features, number_of_feature_to_show=10, figsize=(10, 10), cmap='viridis'):
     num_features = features.shape[-1]
     num_rows = (num_features + 4) // 5  # Calculate the number of rows needed
