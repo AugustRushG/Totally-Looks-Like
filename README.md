@@ -5,17 +5,26 @@ The "Totally Looks Like" project aims to identify visually similar images using 
 
 ## Table of Contents
 - [Overview](#overview)
-- [Dataset](#dataset;)
+- [Dataset](#dataset)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Advance Configuration](#advance-configuration)
 - [Features](#features)
 
 
+## Overview
+- In this project, we've adopted the Siamese Network architecture for visual similarity matching. Our model takes as input one left image and a set of twenty right images. The objective is to identify the image among the twenty that most closely resembles the left image. The performance is evaluated using Top-2 K Categorical Accuracy, meaning that if any of the top two selected images is the correct match, the output is considered correct. 
+- Below is an example of the siamese network architecture, it does not reflects our design of the model.
+- ![siamese_model_architecture](imgs/siamese_network.jpg)
+
+- We have extensively evaluated the system using several pre-trained models, including EfficientNetV2S, VGG19, ResNet50, and MobileNetV3Large. This multi-model evaluation enables us to better understand how different architectures capture various aspects of visual similarity.
+
 ## Dataset
 -   In this project we have utilized the Totally looks like dataset by Amir Rosenfeld, Markus D. Solbach, John K. Tsotsos
 -   Follow the link to download the dataset for train, evaluate, and test.
 -   https://sites.google.com/view/totally-looks-like-dataset
+-   ![example](imgs/example.png)
+
 ## Installation
 Install the required packages:
 
@@ -32,7 +41,10 @@ All work is done in a Jupyter Notebook. To begin, launch Jupyter Notebook in the
 ```bash
 jupyter notebook
 ```
-Navigate to the notebook named CV.ipynb and execute the cells to train and evaluate the mode
+Navigate to the notebook named CV.ipynb and execute the cells to train and evaluate the model
+
+- After training you can see the result by using show_test_case which will generate the similarity score between the left and right image.
+- ![test_show](imgs/model_predication.png)
 
 ## Advance Configuration
 You can customize various parameters directly in the Jupyter Notebook, such as:
