@@ -4,6 +4,7 @@ COMP90086_2023_TLLdataset.zip
 dataset/
 archive/
 __pycache__/
+imgs/
 trained_models
 # ignore models
 *.h5
@@ -11,3 +12,5 @@ trained_models
 *.joblib
 *.csv
 *.keras
+__pycache__
+
